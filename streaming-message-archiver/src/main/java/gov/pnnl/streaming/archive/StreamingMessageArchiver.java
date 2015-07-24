@@ -1,10 +1,17 @@
 package gov.pnnl.streaming.archive;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.concurrent.*;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -24,18 +31,18 @@ public class StreamingMessageArchiver {
 
         int messagesPerZip = Integer.parseInt(args[0]);
         int threads = Integer.parseInt(args[1]);
-//        String zipDirectory = args[2];
+        String zipDirectory = args[2];
 
-        new StreamingMessageArchiver().messageArchiver(messagesPerZip, threads);
+        new StreamingMessageArchiver().messageArchiver(messagesPerZip, threads, zipDirectory);
     }
 
-    private void messageArchiver(int messagesPerZip, int threads) {
+    private void messageArchiver(int messagesPerZip, int threads, String zipDirectory) {
 
         ThreadFactory threadFactory = Executors.defaultThreadFactory();
         executorService = Executors.newFixedThreadPool(threads, threadFactory);
 
         for (int i = 0; i < threads; i++) {
-            Zipper zipper = new Zipper();
+            Zipper zipper = new Zipper(zipDirectory);
             executorService.execute(zipper);
         }
 
@@ -74,6 +81,11 @@ public class StreamingMessageArchiver {
 
     class Zipper implements Runnable {
 
+    	private String zipDirectory;
+
+		public Zipper(String zipDirectory) {
+    		this.zipDirectory = zipDirectory;
+    	}
         @Override
         public void run() {
             while (true) {
@@ -87,13 +99,18 @@ public class StreamingMessageArchiver {
         }
 
         private void zipUpMessages(String input) throws IOException {
-            FileOutputStream fos = new FileOutputStream(System.currentTimeMillis() + "-tweets.zip");
+        	String filename = System.currentTimeMillis() + "-tweets.zip";
+        	File tmpFile = new File(System.getProperty("java.io.tmpdir"), filename);
+        	File outputFile = new File(zipDirectory, filename);
+            FileOutputStream fos = new FileOutputStream(tmpFile);
             ZipOutputStream zos = new ZipOutputStream(fos);
             ZipEntry ze = new ZipEntry("tweets.json");
             zos.putNextEntry(ze);
             zos.write(input.getBytes());
             zos.closeEntry();
             zos.close();
+            
+            Files.move(tmpFile.toPath(), outputFile.toPath(), StandardCopyOption.ATOMIC_MOVE);
         }
 
     }
