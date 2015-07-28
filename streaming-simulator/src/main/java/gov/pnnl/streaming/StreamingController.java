@@ -41,13 +41,13 @@ public class StreamingController {
         return new ResponseEntity<String>(query, OK);
     }
 
-    @RequestMapping(value = "/throttle", method = RequestMethod.GET)
+    @RequestMapping(value = "/rate", method = RequestMethod.GET)
     public ResponseEntity<String> throttle(@RequestParam(value = "mps", defaultValue = "1000") Integer mps) {
         this.rate = mps;
 
-        log.info("setting throttling to " + mps + " messages per second");
+        log.info("setting rate to " + mps + " messages per second");
 
-        return new ResponseEntity<>("new throttle speed:" + mps, OK);
+        return new ResponseEntity<>("new rate:" + mps, OK);
     }
 
     @RequestMapping(value = "/kill", method = RequestMethod.GET)
@@ -72,6 +72,10 @@ public class StreamingController {
         int iterations = 0;
         int subRate; // = rate / 4;
         PrintWriter responseWriter = response.getWriter();
+        StringBuilder logMessage = new StringBuilder();
+        long time = 0;
+        int partsOfSecond = 4;
+        int msToSleep = 1000 / partsOfSecond;
 
         while (alive) {
 
@@ -80,7 +84,7 @@ public class StreamingController {
             }
 
             //recalculate for on the fly throttling
-            subRate = rate / 4;
+            subRate = rate / partsOfSecond;
 
             start = System.currentTimeMillis();
 
@@ -91,14 +95,17 @@ public class StreamingController {
             }
             iterations++;
 
-            if (iterations % 8 == 0)
-                log.info("still running ...");
+            if (iterations % (partsOfSecond * 10) == 0) {
+                time = System.currentTimeMillis() - totalStart;
+                log.info(logMessage.append(count).append(" total messages.  current rate: ").append(rate).append("mps.  cumulative rate:").append(((float) count / (time / 1000))).append(" mps"));
+                logMessage.setLength(0);
+            }
 
-            long timeLapse = (start + 250) - System.currentTimeMillis();
-            Thread.sleep(timeLapse > 0 ? timeLapse : 250);
+            long timeLapse = (start + msToSleep) - System.currentTimeMillis();
+            Thread.sleep(timeLapse > 0 ? timeLapse : msToSleep);
         }
 
-        long time = System.currentTimeMillis() - totalStart;
+        time = System.currentTimeMillis() - totalStart;
 
         log.info("done");
         log.info(time + " ms total tweets:" + count);

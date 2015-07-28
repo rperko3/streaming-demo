@@ -39,7 +39,7 @@
     <!--</appender>-->
 
     <logger name="gov.pnnl.streaming" level="DEBUG"/>
-    <logger name="org.springframework" level="INFO"/>
+    <!--<logger name="org.springframework" level="INFO"/>-->
     <!--<level value="DEBUG"/>-->
     <!--<appender-ref ref="dailyRollingFileAppender"/>-->
     <!--<appender-ref ref="minuteRollingFileAppender"/>-->
